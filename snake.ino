@@ -113,6 +113,9 @@ long posUpdateMillis = 0;
 
 long appleMillis = 0;
 
+//AdvanceSevenSegment pointDisplay1 = sevenSegment(52, 50, 48, 46, 44, 42, 40, 38);
+//AdvanceSevenSegment pointDisplay2 = sevenSegment(53, 51, 49, 47, 45, 43, 41, 39);
+
 void setPix(Vector pos, bool state) {
   lc.setLed(0,pos.x,pos.y,state);
 }
@@ -187,11 +190,19 @@ void updatePos() {
     Vector newPos = Vector(0, 0);
     snake.peekPrevious(&newPos);
     newPos = newPos.add(velocity);
+    bool turnOffRear = true;
 
     if (snakePixels[newPos.x][newPos.y]) {
-      setPix(applePos, false);
-      stopped = true;
-      return;
+      Vector rear = Vector(0, 0);
+      snake.peek(&rear);
+      if (!rear.equalTo(newPos)) {
+        setPix(applePos, false);
+        stopped = true;
+        return;
+      } else {
+        turnOffRear = false;
+      }
+      
     }
     
     snake.push(&newPos);
@@ -204,7 +215,7 @@ void updatePos() {
     } else {
       Vector rear = Vector(0, 0);
       snake.pop(&rear);
-      setPix(rear, false);
+      if (turnOffRear) setPix(rear, false);
       snakePixels[rear.x][rear.y] = false;
     }
 
