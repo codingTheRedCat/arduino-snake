@@ -113,9 +113,6 @@ long posUpdateMillis = 0;
 
 long appleMillis = 0;
 
-//AdvanceSevenSegment pointDisplay1 = sevenSegment(52, 50, 48, 46, 44, 42, 40, 38);
-//AdvanceSevenSegment pointDisplay2 = sevenSegment(53, 51, 49, 47, 45, 43, 41, 39);
-
 void setPix(Vector pos, bool state) {
   lc.setLed(0,pos.x,pos.y,state);
 }
@@ -181,7 +178,35 @@ void setup() {
   lc.clearDisplay(0);
 
   gameStart();
+  //gameWon();
   
+}
+
+void gameWon() {
+  // Displays GG
+  stopped = true;
+  lc.clearDisplay(0);
+  setPix(Vector(7, 6), true);
+  setPix(Vector(7, 5), true);
+  setPix(Vector(6, 7), true);
+  setPix(Vector(5, 7), true);
+  setPix(Vector(4, 7), true);
+  setPix(Vector(3, 6), true);
+  setPix(Vector(3, 5), true);
+  setPix(Vector(4, 4), true);
+  setPix(Vector(5, 4), true);
+  setPix(Vector(5, 5), true);
+
+  setPix(Vector(2, 1), true);
+  setPix(Vector(2, 0), true);
+  setPix(Vector(1, 0), true);
+  setPix(Vector(0, 1), true);
+  setPix(Vector(0, 2), true);
+  setPix(Vector(1, 3), true);
+  setPix(Vector(2, 3), true);
+  setPix(Vector(3, 3), true);
+  setPix(Vector(4, 2), true);
+  setPix(Vector(4, 1), true);
 }
 
 // Updates snake position periodically
@@ -190,34 +215,41 @@ void updatePos() {
     Vector newPos = Vector(0, 0);
     snake.peekPrevious(&newPos);
     newPos = newPos.add(velocity);
-    bool turnOffRear = true;
+
+    Vector rear = Vector(0, 0);
+    snake.peek(&rear);
+
+    boolean removeRear = true;
+
+    if (applePos.equalTo(newPos)) {
+      if (snake.getCount() >= 63) {
+        gameWon();
+        return;
+      }
+      setPix(newPos, true);
+      snakePixels[newPos.x][newPos.y] = true;
+      spawnApple();
+      snakePixels[newPos.x][newPos.y] = false;
+      removeRear = false;
+    } 
+
+    if (removeRear) {
+      snake.pop(&rear);
+      setPix(rear, false);
+      snakePixels[rear.x][rear.y] = false;
+    }
 
     if (snakePixels[newPos.x][newPos.y]) {
-      Vector rear = Vector(0, 0);
-      snake.peek(&rear);
-      if (!rear.equalTo(newPos)) {
-        setPix(applePos, false);
-        stopped = true;
-        return;
-      } else {
-        turnOffRear = false;
-      }
+      
+      setPix(applePos, false);
+      stopped = true;
+      return;
       
     }
-    
+
     snake.push(&newPos);
     setPix(newPos, true);
     snakePixels[newPos.x][newPos.y] = true;
-
-    if (applePos.equalTo(newPos)) {
-      spawnApple();
-      setPix(newPos, true);
-    } else {
-      Vector rear = Vector(0, 0);
-      snake.pop(&rear);
-      if (turnOffRear) setPix(rear, false);
-      snakePixels[rear.x][rear.y] = false;
-    }
 
     joystickLock = false;
     posUpdateMillis = millis() + POS_UPDATE_TIME;
