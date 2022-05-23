@@ -6,8 +6,11 @@
 #define CLK 13
 #define JOYSTICK_X A1
 #define JOYSTICK_Y A0
+#define JOYSTICK_FIRE A3
+#define RANDOM_SOURCE_PIN A2
 #define START_LENGTH 5
 #define POS_UPDATE_TIME 500
+#define POS_UPDATE_TIME_BOOST 200
 #define APPLE_UPDATE_TIME 250
 
 // Vector stuff
@@ -113,6 +116,8 @@ long posUpdateMillis = 0;
 
 long appleMillis = 0;
 
+bool boost = false;
+
 void setPix(Vector pos, bool state) {
   lc.setLed(0,pos.x,pos.y,state);
 }
@@ -160,7 +165,7 @@ void spawnApple() {
 
 // Makes game start
 void gameStart() {
-  randomSeed(analogRead(A2));
+  randomSeed(analogRead(RANDOM_SOURCE_PIN));
 
   spawnSnake();
   spawnApple();
@@ -172,13 +177,13 @@ void setup() {
 
   pinMode(JOYSTICK_X, INPUT);
   pinMode(JOYSTICK_Y, INPUT);
+  pinMode(JOYSTICK_FIRE, INPUT);
   
   lc.shutdown(0,false);
   lc.setIntensity(0,0);
   lc.clearDisplay(0);
 
   gameStart();
-  //gameWon();
   
 }
 
@@ -252,7 +257,7 @@ void updatePos() {
     snakePixels[newPos.x][newPos.y] = true;
 
     joystickLock = false;
-    posUpdateMillis = millis() + POS_UPDATE_TIME;
+    posUpdateMillis = millis() + (boost? POS_UPDATE_TIME_BOOST : POS_UPDATE_TIME);
   }
 }
 
@@ -322,7 +327,8 @@ void loop() {
     delay(250);
     return;
   }
-  
+
+  boost = analogRead(JOYSTICK_FIRE) == 0;
   updateVelocity();
   updatePos();
   animateApple();
