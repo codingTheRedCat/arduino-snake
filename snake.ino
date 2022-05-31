@@ -12,6 +12,7 @@
 #define POS_UPDATE_TIME 500
 #define POS_UPDATE_TIME_BOOST 200
 #define APPLE_UPDATE_TIME 250
+#define START_HOLD_TIME 250
 
 // Vector stuff
 class Vector {
@@ -106,6 +107,10 @@ Vector freePixels[64];
 
 bool stopped;
 
+bool started = false;
+
+long startHoldMillis = 0;
+
 bool joystickLock = false;
 
 Vector applePos = Vector(-1, -1);
@@ -117,6 +122,14 @@ long posUpdateMillis = 0;
 long appleMillis = 0;
 
 bool boost = false;
+
+bool turned = false;
+
+/**
+ * false - wall swap
+ * true - wall kill
+ */
+bool gameMode = false;
 
 void setPix(Vector pos, bool state) {
   lc.setLed(0,pos.x,pos.y,state);
@@ -165,10 +178,94 @@ void spawnApple() {
 
 // Makes game start
 void gameStart() {
+  started = true;
+  lc.clearDisplay(0);
   randomSeed(analogRead(RANDOM_SOURCE_PIN));
 
   spawnSnake();
   spawnApple();
+}
+
+void displayGM() {
+  lc.clearDisplay(0);
+  if (gameMode) {
+    for (int i = 0; i < 8; i++) {
+      setPix(Vector(0, i), true);
+      setPix(Vector(i, 0), true);
+      setPix(Vector(7, i), true);
+      setPix(Vector(i, 7), true);
+    }
+  } else {
+    setPix(Vector(0, 0), true);
+    setPix(Vector(0, 7), true);
+    setPix(Vector(7, 7), true);
+    setPix(Vector(7, 0), true);
+
+    setPix(Vector(1, 0), true);
+    setPix(Vector(0, 1), true);
+
+    setPix(Vector(6, 7), true);
+    setPix(Vector(7, 6), true);
+
+    setPix(Vector(0, 6), true);
+    setPix(Vector(1, 7), true);
+
+    setPix(Vector(6, 0), true);
+    setPix(Vector(7, 1), true);
+
+    setPix(Vector(0, 3), true);
+    setPix(Vector(0, 4), true);
+
+    setPix(Vector(7, 3), true);
+    setPix(Vector(7, 4), true);
+
+    setPix(Vector(3, 0), true);
+    setPix(Vector(4, 0), true);
+
+    setPix(Vector(3, 7), true);
+    setPix(Vector(4, 7), true);
+  }
+}
+
+
+void gameSetup() {
+  displayGM();
+}
+
+void gameSetupLoop() {
+  if (analogRead(JOYSTICK_FIRE) == 0) {
+    if (startHoldMillis == 0) {
+      startHoldMillis = millis();
+    }
+    
+  } else {
+    startHoldMillis = 0;
+  }
+
+  Serial.print(millis());
+  Serial.print("|");
+  Serial.println(startHoldMillis);
+
+  if (startHoldMillis != 0 && (startHoldMillis + START_HOLD_TIME) <= millis()) {
+    gameStart();
+    return;
+  }
+
+  int x = analogRead(JOYSTICK_X);
+
+  if (x > 624) {
+    if (!gameMode) {
+      gameMode = true;
+      displayGM();
+    }
+  }
+  else if (x < 400) {
+    if (gameMode) {
+      gameMode = false;
+      displayGM();
+    }
+  }
+  
 }
 
 void setup() {
@@ -183,7 +280,7 @@ void setup() {
   lc.setIntensity(0,0);
   lc.clearDisplay(0);
 
-  gameStart();
+  gameSetup();
   
 }
 
@@ -216,9 +313,18 @@ void gameWon() {
 
 // Updates snake position periodically
 void updatePos() {
+  
   if (millis() >= posUpdateMillis) {
+
     Vector newPos = Vector(0, 0);
     snake.peekPrevious(&newPos);
+
+    if (gameMode && turned && !newPos.sumInBounds(velocity)) {
+      setPix(applePos, false);
+      stopped = true;
+      return;
+    }
+    
     newPos = newPos.add(velocity);
 
     Vector rear = Vector(0, 0);
@@ -321,6 +427,11 @@ bool inversed = false;
 
 // Loop
 void loop() {
+  if (!started) {
+    gameSetupLoop();
+    return;
+  }
+
   if (stopped) {
     lc.setIntensity(0,inversed ? 15 : 0);
     inversed = !inversed;
@@ -329,7 +440,13 @@ void loop() {
   }
 
   boost = analogRead(JOYSTICK_FIRE) == 0;
+  
   updateVelocity();
+
+  if (!turned && joystickLock) {
+    turned = true;
+  }
+  
   updatePos();
   animateApple();
 
